@@ -42,4 +42,23 @@ Affected rows: 1000
 
 ---
 
-НАЗАДДАЛЕЕ
+# Решение:
+**Мое решение и решение Автора курса совпадают:**
+
+	SELECT 
+	    order_id,
+	    SUM(price) AS order_price
+	    
+	FROM 
+	
+	    (SELECT order_id, product_ids, unnest (product_ids) AS product_id FROM orders) b
+	    
+	    LEFT JOIN 
+	    
+	    products 
+	    
+	    USING (product_id)
+	    
+	GROUP BY order_id
+	ORDER BY order_id 
+	LIMIT 1000
