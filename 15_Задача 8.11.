@@ -1,0 +1,99 @@
+### Задача 11.
+
+---
+
+Кажется, всё готово к тому, чтобы для каждого пользователя посчитать среднее количество товаров в заказе.
+
+---
+
+**Задание:**
+
+Используя запрос из предыдущего задания, посчитайте, сколько в среднем товаров
+заказывает каждый пользователь. Выведите id пользователя и среднее количество товаров в
+заказе. Среднее значение округлите до двух знаков после запятой. Колонку посчитанными
+значениями назовите `avg_order_size`. Результат выполнения запроса отсортируйте по
+возрастанию id пользователя. 
+
+Добавьте в запрос оператор `LIMIT` и выведите только первые 1000 строк результирующей
+таблицы.
+
+Поля в результирующей таблице: `user_id`, `avg_order_size`
+
+---
+
+**Пояснение:**
+
+Для решения вам пригодится функция `array_length`. Мы рассматривали её [в этом задании](https://lab.karpov.courses/learning/152/module/1762/lesson/17926/53322/251391/).
+
+---
+
+ **Ожидаемый результат**
+
+|user_id|avg_order_size|
+|---|---|
+|1|2.75|
+|2|4.0|
+|3|4.0|
+|4|3.0|
+|5|1.0|
+|...|...|
+|500|3.5|
+|501|3.5|
+|502|3.5|
+|503|2.0|
+|504|3.33|
+|...|...|
+|1001|2.71|
+|1002|2.67|
+|1003|3.0|
+|1004|3.4|
+|1005|2.0|
+
+Affected rows: 1000
+
+---
+
+ **Подсказка на случай, если совсем не получается**
+
+Чтобы решить задачу, достаточно взять запрос из прошлого задания, посчитать размер неотменённых заказов, а затем сделать группировку по пользователям и для каждого из них посчитать средний размер заказа.
+
+---
+
+# Решения: 
+
+**Мое:**
+
+	WITH co AS 
+	    (SELECT order_id 
+	    FROM user_actions 
+	    WHERE action = 'cancel_order')
+	
+	
+	SELECT 
+	    user_id, 
+	    ROUND (AVG(array_length(product_ids, 1)), 2) AS avg_order_size
+	FROM 
+	    (SELECT user_id, order_id FROM user_actions WHERE order_id not in (SELECT * FROM co)) a
+	
+	    LEFT JOIN 
+	
+	    (SELECT order_id, product_ids FROM orders WHERE order_id not in (SELECT * FROM co)) b
+	
+	    USING (order_id)
+	GROUP BY user_id
+	ORDER BY user_id
+	LIMIT 1000
+
+**Вариант верного решения:**
+
+	SELECT user_id,
+	       round(avg(array_length(product_ids, 1)), 2) as avg_order_size
+	FROM   (SELECT user_id,
+	               order_id
+	        FROM   user_actions
+	        WHERE  order_id not in (SELECT order_id
+	                                FROM   user_actions
+	                                WHERE  action = 'cancel_order')) t1
+	    LEFT JOIN orders using(order_id)
+	GROUP BY user_id
+	ORDER BY user_id limit 1000
