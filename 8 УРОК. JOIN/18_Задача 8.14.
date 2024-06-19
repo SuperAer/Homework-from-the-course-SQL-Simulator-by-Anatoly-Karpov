@@ -1,0 +1,221 @@
+### Задача 14.
+
+---
+
+Вот теперь у нас есть всё необходимое, чтобы сделать наш первый серьёзный аналитический запрос и посчитать разные пользовательские метрики!
+
+Давайте объединим в один запрос данные о количестве товаров в заказах наших пользователей с информацией о стоимости каждого заказа, а затем рассчитаем несколько полезных показателей.
+
+---
+
+**Задача:**
+
+Объедините запрос из [предыдущего задания](https://lab.karpov.courses/learning/152/module/1762/lesson/17929/53217/257177/) с частью запроса, который вы составили в [задаче 11](https://lab.karpov.courses/learning/152/module/1762/lesson/17929/53217/257175/), то есть объедините запрос со стоимостью заказов с запросом, в котором вы считали размер каждого заказа из таблицы `user_actions`.
+
+На основе объединённой таблицы для каждого пользователя рассчитайте следующие показатели:
+
+- общее число заказов — колонку назовите `orders_count`
+- среднее количество товаров в заказе — `avg_order_size`  
+    
+- суммарную стоимость всех покупок — `sum_order_value`  
+    
+- среднюю стоимость заказа — `avg_order_value`  
+    
+- минимальную стоимость заказа — `min_order_value`  
+    
+- максимальную стоимость заказа — `max_order_value`  
+    
+
+---
+
+Полученный результат отсортируйте по возрастанию id пользователя.
+
+Добавьте в запрос оператор `LIMIT` и выведите только первые 1000 строк результирующей таблицы.
+
+Помните, что в расчётах мы по-прежнему учитываем только неотменённые заказы. При расчёте средних значений, округляйте их до двух знаков после запятой.
+
+Поля в результирующей таблице: 
+
+`user_id`, `orders_count`, `avg_order_size`, `sum_order_value`, `avg_order_value`, `min_order_value`, `max_order_value`
+
+---
+
+**Пояснение:**
+
+Для решения задачи нужно просто объединить запросы, которые вы уже написали на прошлых шагах, и сделать группировку с агрегацией. Подумайте, какой ключ и тип соединения нужно использовать. Если ваш запрос кажется слишком громоздким и сложным для восприятия, воспользуйтесь оператором `WITH` и табличными выражениями.
+
+---
+
+ **Ожидаемый результат**
+
+| user_id | orders_count | avg_order_size | sum_order_value | avg_order_value | min_order_value | max_order_value |
+| ------- | ------------ | -------------- | --------------- | --------------- | --------------- | --------------- |
+| 1       | 4            | 2.75           | 1206.0          | 301.5           | 170.0           | 640.0           |
+| 2       | 2            | 4.0            | 590.0           | 295.0           | 196.0           | 394.0           |
+| 3       | 4            | 4.0            | 2154.0          | 538.5           | 336.0           | 772.0           |
+| 4       | 2            | 3.0            | 329.0           | 164.5           | 156.0           | 173.0           |
+| 5       | 1            | 1.0            | 51.0            | 51.0            | 51.0            | 51.0            |
+| ...     | ...          | ...            | ...             | ...             | ...             | ...             |
+| 500     | 2            | 3.5            | 750.0           | 375.0           | 192.0           | 558.0           |
+| 501     | 4            | 3.5            | 1756.0          | 439.0           | 226.0           | 844.0           |
+| 502     | 2            | 3.5            | 526.0           | 263.0           | 216.0           | 310.0           |
+| 503     | 2            | 2.0            | 340.0           | 170.0           | 165.0           | 175.0           |
+| 504     | 3            | 3.33           | 920.0           | 306.67          | 226.0           | 371.0           |
+| ...     | ...          | ...            | ...             | ...             | ...             | ...             |
+| 1001    | 7            | 2.71           | 2376.0          | 339.43          | 60.0            | 596.0           |
+| 1002    | 3            | 2.67           | 1365.0          | 455.0           | 75.0            | 665.0           |
+| 1003    | 1            | 3.0            | 200.0           | 200.0           | 200.0           | 200.0           |
+| 1004    | 5            | 3.4            | 1906.0          | 381.2           | 245.0           | 498.0           |
+| 1005    | 1            | 2.0            | 94.0            | 94.0            | 94.0            | 94.0            |
+
+Affected rows: 1000
+
+---
+
+Источник: https://lab.karpov.courses/learning/152/module/1762/lesson/17929/53217/257178/
+
+---
+
+# Решения:
+
+## Мое решение-1: 
+
+	-- Этот запрос возвращает список отмененных заказов:
+	WITH canceled_orders AS 
+	    (SELECT order_id 
+	    FROM user_actions 
+	    WHERE action = 'cancel_order'),
+	    
+	    ttt AS
+	    (SELECT 
+	        user_id, 
+	        order_id,
+	        SUM(price) AS sum_order_value
+	    FROM
+	        (SELECT order_id, product_ids, unnest (product_ids) AS product_id FROM orders WHERE order_id not in (SELECT * FROM canceled_orders)) c2
+	        
+	        LEFT JOIN 
+	        
+	        products
+	        
+	        USING (product_id)
+	        
+	        LEFT JOIN
+	        
+	        (SELECT order_id, user_id FROM user_actions) d2
+	        
+	        USING (order_id)
+	        
+	    GROUP BY user_id, order_id
+	    ORDER BY user_id, order_id)
+	
+	SELECT 
+	user_id, 
+	orders_count, 
+	avg_order_size, 
+	sum_order_value, 
+	ROUND((sum_order_value/orders_count),2) AS avg_order_value,
+	min_order_value,
+	max_order_value
+	
+	FROM
+	
+	-- Этот подзапрос возвращает среднее количество заказов на пользователя:
+	    (SELECT 
+	        user_id, 
+	        ROUND (AVG(array_length(product_ids, 1)), 2) AS avg_order_size, COUNT(order_id) AS orders_count
+	    FROM 
+	        (SELECT user_id, order_id FROM user_actions WHERE order_id not in (SELECT * FROM canceled_orders)) a
+	        LEFT JOIN 
+	        (SELECT order_id, product_ids FROM orders) b
+	        USING (order_id)
+	    GROUP BY user_id
+	    ORDER BY user_id 
+	    LIMIT 1000) t_avg_order_size
+	
+	LEFT JOIN 
+	
+	-- Этот подзапрос возвращает сумму заказов 
+	    (SELECT 
+	        user_id, 
+	        SUM(sum_order_value) AS sum_order_value,
+	        MIN(sum_order_value) AS min_order_value,
+	        MAX(sum_order_value) AS max_order_value
+	    FROM
+	        ttt
+	    GROUP BY user_id) t_order_price
+	
+	USING (user_id)
+
+
+## Решение Автора курса: 
+
+	SELECT user_id,
+	       count(order_price) as orders_count,
+	       round(avg(order_size), 2) as avg_order_size,
+	       sum(order_price) as sum_order_value,
+	       round(avg(order_price), 2) as avg_order_value,
+	       min(order_price) as min_order_value,
+	       max(order_price) as max_order_value
+	FROM   (SELECT user_id,
+	               order_id,
+	               array_length(product_ids, 1) as order_size
+	        FROM   (SELECT user_id,
+	                       order_id
+	                FROM   user_actions
+	                WHERE  order_id not in (SELECT order_id
+	                                        FROM   user_actions
+	                                        WHERE  action = 'cancel_order')) t1
+	            LEFT JOIN orders using(order_id)) t2
+	    LEFT JOIN (SELECT order_id,
+	                      sum(price) as order_price
+	               FROM   (SELECT order_id,
+	                              product_ids,
+	                              unnest(product_ids) as product_id
+	                       FROM   orders
+	                       WHERE  order_id not in (SELECT order_id
+	                                               FROM   user_actions
+	                                               WHERE  action = 'cancel_order')) t3
+	                   LEFT JOIN products using(product_id)
+	               GROUP BY order_id) t4 using (order_id)
+	GROUP BY user_id
+	ORDER BY user_id limit 1000
+
+
+## Мое решение 2 (оптимизированное после изучения варианта решения Автора Курса): 
+
+	WITH canceled_orders AS 
+	    (SELECT order_id 
+	    FROM user_actions 
+	    WHERE action = 'cancel_order')
+	
+	SELECT user_id,
+	    COUNT(order_price) AS orders_count,
+	    ROUND(AVG(order_size),2) AS avg_order_size,
+	    SUM(order_price) AS sum_order_value,
+	    ROUND(AVG(order_price),2) AS avg_order_value,
+	    MIN(order_price) AS min_order_value,
+	    MAX(order_price) AS max_order_value
+	FROM (SELECT user_id,
+	            order_id,
+	            array_length(product_ids,1) as order_size
+	    FROM (SELECT user_id,
+	                order_id
+	            FROM user_actions
+	            WHERE order_id NOT IN (SELECT * FROM canceled_orders)) t1
+	            LEFT JOIN 
+	            orders USING(order_id)) t2
+	    LEFT JOIN 
+	        (SELECT order_id,
+	            SUM(price) AS order_price
+	        FROM (SELECT order_id,
+	                    product_ids,
+	                    unnest(product_ids) as product_id
+	            FROM orders 
+	            WHERE order_id NOT IN (SELECT * FROM canceled_orders)) t3
+	            LEFT JOIN 
+	            products USING(product_id)
+	        GROUP BY order_id) t4 USING (order_id)
+	GROUP BY user_id
+	ORDER BY user_id 
+	LIMIT 1000
