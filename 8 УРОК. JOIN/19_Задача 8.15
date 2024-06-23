@@ -1,0 +1,85 @@
+### Задача 15.
+
+**НОВАЯ ЗАДАЧА**
+
+С большой задачей мы справились — теперь давайте решим несколько дополнительных задач на закрепление новых знаний.
+
+---
+
+**Задание:**
+
+По данным таблиц `orders`, `products` и `user_actions` посчитайте ежедневную выручку сервиса. Под выручкой будем понимать стоимость всех реализованных товаров, содержащихся в заказах.
+
+Колонку с датой назовите `date`, а колонку со значением выручки — `revenue`.
+
+В расчётах учитывайте только неотменённые заказы.
+
+Результат отсортируйте по возрастанию даты.
+
+Поля в результирующей таблице: `date`, `revenue`
+
+---
+
+**Пояснение:**
+
+Вспомнить, как извлечь дату из колонки с отметкой времени, можно [на этом шаге](https://lab.karpov.courses/learning/152/module/1762/lesson/18484/53190/250927/).
+
+Значения в колонке с выручкой ожидаются в формате `DECIMAL`.
+
+---
+
+ **Ожидаемый результат**
+
+|date|revenue|
+|---|---|
+|24/08/22|49924.0|
+|25/08/22|430860.0|
+|26/08/22|534766.0|
+|27/08/22|817053.0|
+|28/08/22|1133370.0|
+|29/08/22|1279891.0|
+|30/08/22|1279377.0|
+|31/08/22|1312720.0|
+|01/09/22|1406101.0|
+|02/09/22|1907107.0|
+|03/09/22|2210988.0|
+|04/09/22|2294009.0|
+|05/09/22|1784690.0|
+|06/09/22|1330931.0|
+|07/09/22|1807800.0|
+|08/09/22|2099508.0|
+
+Affected rows: 16
+
+---
+
+# Решения:
+
+## Мое решение:
+
+SELECT date, SUM(price) AS revenue
+FROM (SELECT 
+        DATE (creation_time) as date,
+        unnest(product_ids) as product_id
+    FROM orders
+    WHERE order_id NOT IN (SELECT order_id FROM user_actions WHERE action = 'cancel_order')) t1
+    LEFT JOIN products 
+    ON products.product_id = t1.product_id
+    
+GROUP BY date
+ORDER BY date
+
+## Решение Автора курса:
+
+SELECT date(creation_time) as date,
+       sum(price) as revenue
+FROM   (SELECT order_id,
+               creation_time,
+               product_ids,
+               unnest(product_ids) as product_id
+        FROM   orders
+        WHERE  order_id not in (SELECT order_id
+                                FROM   user_actions
+                                WHERE  action = 'cancel_order')) t1
+    LEFT JOIN products using(product_id)
+GROUP BY date
