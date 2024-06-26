@@ -1,0 +1,77 @@
+### Задача 17.
+
+---
+
+На одном из прошлых уроков мы считали долю отменённых заказов (cancel_rate) для каждого пользователя. Теперь в нашем распоряжении есть все необходимые знания, чтобы посчитать этот показатель в разрезе пола.
+
+---
+
+**Задание:**
+
+Возьмите запрос, составленный [на одном из прошлых уроков](https://lab.karpov.courses/learning/152/module/1762/lesson/17927/54325/256098/), и подтяните в него из таблицы `users` данные о поле пользователей таким образом, чтобы все пользователи из таблицы `user_actions` остались в результате. Затем посчитайте среднее значение cancel_rate для каждого пола, округлив его до трёх знаков после запятой. Колонку с посчитанным средним значением назовите `avg_cancel_rate`.
+
+Помните про отсутствие информации о поле некоторых пользователей после join, так как не все пользователи из таблицы `user_action` есть в таблице `users`. Для этой группы тоже посчитайте cancel_rate и в результирующей таблице для пустого значения в колонке с полом укажите ‘unknown’ (без кавычек). Возможно, для этого придётся вспомнить, как работает `COALESCE`.
+
+Результат отсортируйте по колонке с полом пользователя по возрастанию.
+
+Поля в результирующей таблице: `sex`, `avg_cancel_rate`
+
+---
+
+**Пояснение:**
+
+Метрику `cancel_rate` в разрезе пола можно посчитать разными способами, в этой задаче предлагаем следующий алгоритм:
+
+1. Сначала посчитайте `cancel_rate` для каждого пользователя.
+
+2. Затем приджойните к результату информацию о поле пользователей.
+
+3. Потом рассчитайте `avg_cancel_rate` для каждого пола и округлите значения до трёх знаков после запятой.
+
+---
+
+ **Ожидаемый результат**
+
+|sex|avg_cancel_rate|
+|---|---|
+|female|0.051|
+|male|0.048|
+|unknown|0.046|
+
+Affected rows: 3
+
+---
+
+# Решения:
+
+## Мое решение:
+
+SELECT 
+    sex, 
+    ROUND(AVG(cancel_rate),3) AS avg_cancel_rate
+FROM (
+    SELECT users.user_id,
+           count(distinct order_id) filter (WHERE action = 'cancel_order')::decimal / count(distinct order_id) as cancel_rate,
+           COALESCE(sex,'unknown') AS sex
+    FROM   user_actions
+        LEFT JOIN users
+        ON users.user_id = user_actions.user_id
+    GROUP BY users.user_id, sex
+    ORDER BY users.user_id
+) t1
+GROUP BY sex
+ORDER BY sex
+
+## Решение от Автора курса:
+
+SELECT coalesce(sex, 'unknown') as sex,
+       round(avg(cancel_rate), 3) as avg_cancel_rate
+FROM   (SELECT user_id,
+               sex,
+               count(distinct order_id) filter (WHERE action = 'cancel_order')::decimal / count(distinct order_id) as cancel_rate
+        FROM   user_actions
+            LEFT JOIN users using(user_id)
+        GROUP BY user_id, sex
+        ORDER BY cancel_rate desc) t
+GROUP BY sex
+ORDER BY sex
