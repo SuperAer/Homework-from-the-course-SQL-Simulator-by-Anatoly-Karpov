@@ -1,0 +1,109 @@
+### Задача 7.
+
+---
+
+К результату оконных функций можно применять другие функции, в том числе агрегирующие. Давайте для полноты картины посчитаем, сколько в среднем времени проходит между заказами каждого пользователя.
+
+---
+
+**Задание:**
+
+На основе запроса из предыдущего задания для каждого пользователя рассчитайте, сколько в среднем времени проходит между его заказами. Посчитайте этот показатель только для тех пользователей, которые за всё время оформили более одного неотмененного заказа.
+
+Среднее время между заказами выразите в часах, округлив значения до целого числа. Колонку со средним значением времени назовите `hours_between_orders`. Результат отсортируйте по возрастанию id пользователя.
+
+Добавьте в запрос оператор `LIMIT` и включите в результат только первые 1000 записей.
+
+Поля в результирующей таблице: `user_id`, `hours_between_orders`
+
+---
+
+**Пояснение:**
+
+Чтобы перевести значение интервала в часы, необходимо извлечь из него количество секунд, а затем поделить это значение на количество секунд в одном часе. Для извлечения количества секунд из интервала можно воспользоваться следующей конструкцией:
+
+```
+SELECT EXTRACT(epoch FROM INTERVAL '3 days, 1:21:32')
+
+Результат:
+264092	
+```
+
+Функцию `EXTRACT` мы рассматривали [на прошлых уроках](https://lab.karpov.courses/learning/152/module/1762/lesson/17928/53213/353800/).
+
+В результате всех расчётов для каждого пользователя с более чем одним заказом у вас должно получиться целое число часов, которое в среднем проходит между его заказами. Подумайте, как убрать из данных пользователей с одним заказом. При необходимости дополнительно преобразуйте среднее значение часов в целочисленный тип данных.
+
+Повторять все предыдущие оконные функции из предыдущего запроса не обязательно — оставьте только самое необходимое.
+
+---
+
+ **Ожидаемый результат**
+
+|user_id|hours_between_orders|
+|---|---|
+|1|72|
+|2|108|
+|3|64|
+|4|77|
+|6|11|
+|...|...|
+|556|314|
+|557|50|
+|559|45|
+|560|92|
+|561|83|
+|...|...|
+|1125|35|
+|1126|49|
+|1127|37|
+|1129|33|
+|1130|20|
+
+Affected rows: 1000
+
+---
+# Решения:
+
+## Мое решение:
+```
+SELECT user_id, hours_between_orders
+FROM (
+    SELECT 
+        user_id, COUNT(order_id) as orders_count,
+        ROUND(AVG(time_diff)/3600,0)::INTEGER as hours_between_orders
+    FROM(
+        SELECT 
+            user_id, order_id, time, 
+            ROW_NUMBER() OVER(PARTITION BY user_id ORDER BY time) as order_number,
+            LAG(time,1) OVER(PARTITION BY user_id ORDER BY time) as time_lag,
+            EXTRACT(EPOCH FROM (time - LAG(time,1) OVER(PARTITION BY user_id ORDER BY time)))::INTEGER as time_diff
+        FROM user_actions
+        WHERE order_id NOT IN (SELECT order_id FROM user_actions WHERE action = 'cancel_order')
+        ) t
+    GROUP BY user_id
+)tt
+WHERE orders_count > 1
+ORDER BY user_id
+LIMIT 1000
+```
+
+## Решение Автора:
+```
+SELECT user_id,
+       avg(time_diff)::integer as hours_between_orders
+FROM   (SELECT user_id,
+               order_id,
+               time,
+               extract(epoch
+        FROM   (time - lag(time, 1)
+        OVER (
+        PARTITION BY user_id
+        ORDER BY time)))/3600 as time_diff
+        FROM   user_actions
+        WHERE  order_id not in (SELECT order_id
+                                FROM   user_actions
+                                WHERE  action = 'cancel_order')) t
+WHERE  time_diff is not null
+GROUP BY user_id
+ORDER BY user_id limit 1000
+```
