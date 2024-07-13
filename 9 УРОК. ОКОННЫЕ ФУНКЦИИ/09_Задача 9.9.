@@ -1,0 +1,113 @@
+
+### Задача 9.
+
+---
+
+Теперь научимся вместе с оконными функциями применять конструкцию `CASE`. Пример такой записи:
+
+```
+SELECT
+    CASE
+    WHEN SUM(column) OVER (...) > 100 THEN 'above 100'
+    WHEN SUM(column) OVER (...) < 100 THEN 'below 100'
+    ELSE 'equal 100'
+    END AS sum_case
+FROM table
+```
+
+---
+
+**Задание:**
+
+Отметьте в отдельной таблице тех курьеров, которые доставили в сентябре 2022 года заказов больше, чем в среднем все курьеры.
+
+Сначала для каждого курьера в таблице `courier_actions` рассчитайте общее количество доставленных в сентябре заказов. Затем в отдельном столбце с помощью оконной функции укажите, сколько в среднем заказов доставили в этом месяце все курьеры. После этого сравните число заказов, доставленных каждым курьером, со средним значением в новом столбце. Если курьер доставил больше заказов, чем в среднем все курьеры, то в отдельном столбце с помощью `CASE` укажите число 1, в противном случае укажите 0.
+
+Колонку с результатом сравнения назовите `is_above_avg`, колонку с числом доставленных заказов каждым курьером — `delivered_orders`, а колонку со средним значением — `avg_delivered_orders`. При расчёте среднего значения округлите его до двух знаков после запятой. Результат отсортируйте по возрастанию id курьера.
+
+Поля в результирующей таблице: `courier_id`, `delivered_orders`, `avg_delivered_orders`, `is_above_avg`
+
+---
+
+**Пояснение:**
+
+Таблицу с курьерами и числом доставленных заказов сформируйте на основе таблицы `courier_actions` и перед применением оконных функций поместите её в подзапрос.
+
+С этой задачей можно справиться и без конструкции `CASE`, если сконвертировать результат логической операции (`TRUE` или `FALSE`) в тип данных `INT`. Можете попробовать решить задачу разными способами.
+
+Вспомнить, как работает условная конструкция `CASE`, можно [на этом шаге](https://lab.karpov.courses/learning/152/module/1762/lesson/18484/53190/250930/).
+
+---
+
+ **Ожидаемый результат**
+
+|courier_id|delivered_orders|avg_delivered_orders|is_above_avg|
+|---|---|---|---|
+|1|20|13.76|1|
+|2|14|13.76|1|
+|3|23|13.76|1|
+|4|9|13.76|0|
+|5|23|13.76|1|
+|...|...|...|...|
+|1533|16|13.76|1|
+|1534|18|13.76|1|
+|1535|12|13.76|0|
+|1536|15|13.76|1|
+|1537|15|13.76|1|
+|...|...|...|...|
+|3163|4|13.76|0|
+|3164|3|13.76|0|
+|3165|2|13.76|0|
+|3166|2|13.76|0|
+|3167|3|13.76|0|
+
+Affected rows: 2822
+
+---
+
+
+# Решения:
+
+## Мое решение:
+```
+--РЕШЕНИЕ С ПОМОЩЬЮ КОНСТРУКЦИИ CASE
+SELECT 
+    courier_id,
+    delivered_orders,
+    ROUND(AVG(delivered_orders) OVER(), 2) as avg_delivered_orders,
+    CASE
+    WHEN delivered_orders > ROUND(AVG(delivered_orders) OVER(),2) THEN 1
+    ELSE 0
+    END as is_above_avg
+FROM (
+    SELECT courier_id, COUNT(order_id) as delivered_orders
+    FROM courier_actions
+    WHERE action = 'deliver_order' AND DATE_PART('month',time) = 9 AND DATE_PART('year',time) = 2022
+    GROUP BY courier_id
+    ORDER BY delivered_orders DESC
+) t
+ORDER BY courier_id
+```
+
+```
+--РЕШЕНИЕ БЕЗ ПОМОЩИ КОНСТРУКЦИИ CASE
+
+SELECT 
+    courier_id,
+    delivered_orders,
+    ROUND(AVG(delivered_orders) OVER(), 2) as avg_delivered_orders,
+    CAST(delivered_orders > ROUND(AVG(delivered_orders) OVER(),2) AS INT) as is_above_avg
+FROM (
+    SELECT courier_id, COUNT(order_id) as delivered_orders
+    FROM courier_actions
+    WHERE action = 'deliver_order' AND DATE_PART('month',time) = 9 AND DATE_PART('year',time) = 2022
+    GROUP BY courier_id
+    ORDER BY delivered_orders DESC
+) t
+ORDER BY courier_id
+```
+
+## Решение Автора:
+```
+совпадает
+```
